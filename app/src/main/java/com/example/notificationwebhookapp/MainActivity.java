@@ -48,7 +48,8 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
-import java.io.IOException;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
@@ -117,15 +118,136 @@ public class MainActivity extends AppCompatActivity {
     private void handleIntent(Intent intent) {
         if (intent != null && "com.example.SEND_WEBHOOK".equals(intent.getAction())) {
             Log.d(TAG, "Intent received to send webhook");
-            String title = intent.getStringExtra("title");
-            String text = intent.getStringExtra("text");
-            String packageName = intent.getStringExtra("package");
-            Log.d(TAG, "Webhook details - Title: " + title + ", Text: " + text + ", Package: " + packageName);
-
-            // Modify the JSON structure to remove the title, text, and package labels
-            String jsonPayload = text;
-            sendWebhookMessage(jsonPayload);
+            
+            Bundle notificationData = intent.getBundleExtra("notificationData");
+            if (notificationData != null) {
+                try {
+                    // Construct comprehensive JSON payload
+                    JSONObject jsonPayload = buildNotificationJson(notificationData);
+                    
+                    Log.d(TAG, "Complete JSON payload: " + jsonPayload.toString());
+                    sendWebhookMessage(jsonPayload.toString());
+                } catch (Exception e) {
+                    Log.e(TAG, "Error constructing JSON payload", e);
+                    
+                    // Fallback to legacy format for compatibility
+                    String title = intent.getStringExtra("title");
+                    String text = intent.getStringExtra("text");
+                    String packageName = intent.getStringExtra("package");
+                    
+                    if (text != null) {
+                        Log.d(TAG, "Using fallback payload - Title: " + title + ", Text: " + text + ", Package: " + packageName);
+                        sendWebhookMessage(text);
+                    }
+                }
+            } else {
+                // Handle legacy intent format for backward compatibility
+                String title = intent.getStringExtra("title");
+                String text = intent.getStringExtra("text");
+                String packageName = intent.getStringExtra("package");
+                
+                if (text != null) {
+                    Log.d(TAG, "Legacy webhook details - Title: " + title + ", Text: " + text + ", Package: " + packageName);
+                    sendWebhookMessage(text);
+                }
+            }
         }
+    }
+
+    private JSONObject buildNotificationJson(Bundle notificationData) throws Exception {
+        JSONObject json = new JSONObject();
+        
+        // Basic notification information
+        json.put("package", notificationData.getString("package"));
+        json.put("postTime", notificationData.getLong("postTime"));
+        json.put("id", notificationData.getInt("id"));
+        
+        // Handle nullable fields safely
+        String tag = notificationData.getString("tag");
+        if (tag != null) {
+            json.put("tag", tag);
+        }
+        
+        String key = notificationData.getString("key");
+        if (key != null) {
+            json.put("key", key);
+        }
+        
+        // Notification content
+        String title = notificationData.getString("title");
+        if (title != null) {
+            json.put("title", title);
+        }
+        
+        String text = notificationData.getString("text");
+        if (text != null) {
+            json.put("text", text);
+        }
+        
+        String subText = notificationData.getString("subText");
+        if (subText != null) {
+            json.put("subText", subText);
+        }
+        
+        String bigText = notificationData.getString("bigText");
+        if (bigText != null) {
+            json.put("bigText", bigText);
+        }
+        
+        String summaryText = notificationData.getString("summaryText");
+        if (summaryText != null) {
+            json.put("summaryText", summaryText);
+        }
+        
+        String infoText = notificationData.getString("infoText");
+        if (infoText != null) {
+            json.put("infoText", infoText);
+        }
+        
+        String conversationTitle = notificationData.getString("conversationTitle");
+        if (conversationTitle != null) {
+            json.put("conversationTitle", conversationTitle);
+        }
+        
+        String channelId = notificationData.getString("channelId");
+        if (channelId != null) {
+            json.put("channelId", channelId);
+        }
+        
+        // Notification metadata
+        String category = notificationData.getString("category");
+        if (category != null) {
+            json.put("category", category);
+        }
+        
+        json.put("priority", notificationData.getInt("priority"));
+        json.put("visibility", notificationData.getInt("visibility"));
+        json.put("flags", notificationData.getInt("flags"));
+        
+        // Group information
+        String group = notificationData.getString("group");
+        if (group != null) {
+            json.put("group", group);
+        }
+        
+        String sortKey = notificationData.getString("sortKey");
+        if (sortKey != null) {
+            json.put("sortKey", sortKey);
+        }
+        
+        // Actions array
+        String[] actions = notificationData.getStringArray("actions");
+        if (actions != null && actions.length > 0) {
+            JSONArray actionsArray = new JSONArray();
+            for (String action : actions) {
+                if (action != null) {
+                    actionsArray.put(action);
+                }
+            }
+            json.put("actions", actionsArray);
+        }
+        
+        return json;
     }
 
     private List<AppInfo> getInstalledApps() {
